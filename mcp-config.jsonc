@@ -5,32 +5,41 @@
   // Container for all MCP servers that the agent can launch
   "mcpServers": {
     // Logical name under which PaddleOCR MCP server is exposed
+    // Updated to use remote AI Studio deployment to avoid local timeout issues
     "paddleocr": {
-      // Absolute path to the paddleocr_mcp executable inside the agent conda env
       "command": "/opt/anaconda3/envs/paddle-agent/bin/paddleocr_mcp",
-      // Arguments instructing the server to use the OCR pipeline with local PPOCR models on CPU
       "args": [
-        // Flag selecting the pipeline type
         "--pipeline",
-        // Pipeline value matching paddleocr_mcp --help output
         "OCR",
-        // Flag specifying where PPOCR assets are loaded from
         "--ppocr_source",
-        // Value telling the server to use the locally installed PaddleOCR weights
-        "local",
-        // Flag that allows picking the compute device (cpu/gpu)
+        "aistudio",
+        "--server_url",
+        "https://gcd4pfua556dx0m9.aistudio-hub.baidu.com",
         "--device",
-        // Default device value to avoid GPU dependency when not available
         "cpu"
       ],
-      // Environment variables passed to the MCP subprocess
       "env": {
-        // Ensures consistent UTF-8 IO for OCR text results
+        "PADDLEOCR_MCP_AISTUDIO_ACCESS_TOKEN": "${PADDLEOCR_MCP_AISTUDIO_ACCESS_TOKEN}",
         "PYTHONIOENCODING": "utf-8"
       },
-      // Working directory so the server can read any local assets relative to the repo root
       "workingDirectory": "/Users/njx/Documents/git-projects/for-com-ate",
-      // Timeout (in seconds) that the host should wait for initialization
+      "timeoutSeconds": 120
+    },
+    // Backup of the local configuration
+    "paddleocr-local": {
+      "command": "/opt/anaconda3/envs/paddle-agent/bin/paddleocr_mcp",
+      "args": [
+        "--pipeline",
+        "OCR",
+        "--ppocr_source",
+        "local",
+        "--device",
+        "cpu"
+      ],
+      "env": {
+        "PYTHONIOENCODING": "utf-8"
+      },
+      "workingDirectory": "/Users/njx/Documents/git-projects/for-com-ate",
       "timeoutSeconds": 120
     },
     // PP-Structure pipeline entry for page layout analysis
@@ -120,8 +129,16 @@
       "timeoutSeconds": 180
     },
     // Notion remote MCP (Streamable HTTP as recommended by Notion docs)
+    // Switched to local stdio server for better stability and token compatibility
     "notion": {
-      "url": "https://mcp.notion.com/mcp"
+      "command": "npx",
+      "args": [
+        "-y",
+        "@notionhq/notion-mcp-server"
+      ],
+      "env": {
+        "NOTION_TOKEN": "${NOTION_MCP_TOKEN}"
+      }
     },
     // Filesystem MCP server，参考 https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem
     "filesystem": {
