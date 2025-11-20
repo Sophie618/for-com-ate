@@ -14,7 +14,7 @@ export interface NotionClientInterface { // 定义接口。
    * 创建新的 Notion 页面。
    * @param payload 页面内容载荷。
    */
-  createPage(payload: NotionWritePayload): Promise<string>; // 返回新页面 ID。
+  createPage(payload: NotionWritePayload): Promise<{ id: string; url?: string }>; // 返回新页面 ID 和 URL。
 
   /**
    * 更新 Notion 页面属性或内容。
@@ -35,6 +35,24 @@ export interface NotionClientInterface { // 定义接口。
    * @param query 搜索关键词。
    */
   searchPage(query: string): Promise<string | null>;
+
+  // --- Expanded Capabilities ---
+  getUser(userId: string): Promise<any>;
+  listUsers(pageSize?: number, startCursor?: string): Promise<any>;
+  getSelf(): Promise<any>;
+  queryDatabase(databaseId: string, filter?: any, sorts?: any, pageSize?: number, startCursor?: string): Promise<any>;
+  search(query: string, filter?: any, sort?: any, pageSize?: number, startCursor?: string): Promise<any>;
+  getBlockChildren(blockId: string, pageSize?: number, startCursor?: string): Promise<any>;
+  appendBlockChildren(blockId: string, children: any[]): Promise<any>;
+  retrieveBlock(blockId: string): Promise<any>;
+  updateBlock(blockId: string, block: any): Promise<any>;
+  deleteBlock(blockId: string): Promise<any>;
+  retrievePage(pageId: string): Promise<any>;
+  createDatabase(parent: any, title: any[], properties: any): Promise<any>;
+  updateDatabase(databaseId: string, properties: any): Promise<any>;
+  retrieveDatabase(databaseId: string): Promise<any>;
+  retrievePageProperty(pageId: string, propertyId: string): Promise<any>;
+  retrieveComments(blockId: string, pageSize?: number, startCursor?: string): Promise<any>;
 }
 
 
@@ -62,7 +80,7 @@ export class NotionMcpClient implements NotionClientInterface { // 定义真实�
   /**
    * 创建页面：调用 API-post-page 工具。
    */
-  async createPage(payload: NotionWritePayload): Promise<string> {
+  async createPage(payload: NotionWritePayload): Promise<{ id: string; url?: string }> {
     console.log("debugging: NotionMcpClient.createPage", payload.title);
     
     // 转换 markdownContent 为 Notion Blocks (简化版：只处理段落)
@@ -125,12 +143,14 @@ export class NotionMcpClient implements NotionClientInterface { // 定义真实�
 
     const result = await this.callTool("API-post-page", args);
     
+    let pageUrl: string | undefined;
     // 尝试解析并打印页面 URL，方便用户直接打开
     try {
       for (const item of result.content) {
         if (item.type === 'text') {
           const data = JSON.parse(item.text);
           if (data.url) {
+            pageUrl = data.url;
             console.log(`\n✨ Notion 页面已创建！点击链接直接打开:\n👉 ${data.url}\n`);
           }
         }
@@ -139,7 +159,10 @@ export class NotionMcpClient implements NotionClientInterface { // 定义真实�
       // 忽略解析错误，不影响流程
     }
 
-    return this.extractResourceIdentifier(result);
+    return {
+      id: this.extractResourceIdentifier(result),
+      url: pageUrl
+    };
   }
 
   /**
@@ -211,6 +234,120 @@ export class NotionMcpClient implements NotionClientInterface { // 定义真实�
       console.warn("debugging: searchPage failed", error);
       return null;
     }
+  }
+
+  // --- Expanded Capabilities Implementation ---
+
+  async getUser(userId: string): Promise<any> {
+    const result = await this.callTool("API-get-user", { user_id: userId });
+    return this.parseResult(result);
+  }
+
+  async listUsers(pageSize?: number, startCursor?: string): Promise<any> {
+    const args: any = {};
+    if (pageSize) args.page_size = pageSize;
+    if (startCursor) args.start_cursor = startCursor;
+    const result = await this.callTool("API-get-users", args);
+    return this.parseResult(result);
+  }
+
+  async getSelf(): Promise<any> {
+    const result = await this.callTool("API-get-self", {});
+    return this.parseResult(result);
+  }
+
+  async queryDatabase(databaseId: string, filter?: any, sorts?: any, pageSize?: number, startCursor?: string): Promise<any> {
+    const args: any = { database_id: databaseId };
+    if (filter) args.filter = filter;
+    if (sorts) args.sorts = sorts;
+    if (pageSize) args.page_size = pageSize;
+    if (startCursor) args.start_cursor = startCursor;
+    const result = await this.callTool("API-post-database-query", args);
+    return this.parseResult(result);
+  }
+
+  async search(query: string, filter?: any, sort?: any, pageSize?: number, startCursor?: string): Promise<any> {
+    const args: any = { query };
+    if (filter) args.filter = filter;
+    if (sort) args.sort = sort;
+    if (pageSize) args.page_size = pageSize;
+    if (startCursor) args.start_cursor = startCursor;
+    const result = await this.callTool("API-post-search", args);
+    return this.parseResult(result);
+  }
+
+  async getBlockChildren(blockId: string, pageSize?: number, startCursor?: string): Promise<any> {
+    const args: any = { block_id: blockId };
+    if (pageSize) args.page_size = pageSize;
+    if (startCursor) args.start_cursor = startCursor;
+    const result = await this.callTool("API-get-block-children", args);
+    return this.parseResult(result);
+  }
+
+  async appendBlockChildren(blockId: string, children: any[]): Promise<any> {
+    const result = await this.callTool("API-patch-block-children", { block_id: blockId, children });
+    return this.parseResult(result);
+  }
+
+  async retrieveBlock(blockId: string): Promise<any> {
+    const result = await this.callTool("API-retrieve-a-block", { block_id: blockId });
+    return this.parseResult(result);
+  }
+
+  async updateBlock(blockId: string, block: any): Promise<any> {
+    const result = await this.callTool("API-update-a-block", { block_id: blockId, ...block });
+    return this.parseResult(result);
+  }
+
+  async deleteBlock(blockId: string): Promise<any> {
+    const result = await this.callTool("API-delete-a-block", { block_id: blockId });
+    return this.parseResult(result);
+  }
+
+  async retrievePage(pageId: string): Promise<any> {
+    const result = await this.callTool("API-retrieve-a-page", { page_id: pageId });
+    return this.parseResult(result);
+  }
+
+  async createDatabase(parent: any, title: any[], properties: any): Promise<any> {
+    const result = await this.callTool("API-create-a-database", { parent, title, properties });
+    return this.parseResult(result);
+  }
+
+  async updateDatabase(databaseId: string, properties: any): Promise<any> {
+    const result = await this.callTool("API-update-a-database", { database_id: databaseId, properties });
+    return this.parseResult(result);
+  }
+
+  async retrieveDatabase(databaseId: string): Promise<any> {
+    const result = await this.callTool("API-retrieve-a-database", { database_id: databaseId });
+    return this.parseResult(result);
+  }
+
+  async retrievePageProperty(pageId: string, propertyId: string): Promise<any> {
+    const result = await this.callTool("API-retrieve-a-page-property", { page_id: pageId, property_id: propertyId });
+    return this.parseResult(result);
+  }
+
+  async retrieveComments(blockId: string, pageSize?: number, startCursor?: string): Promise<any> {
+    const args: any = { block_id: blockId };
+    if (pageSize) args.page_size = pageSize;
+    if (startCursor) args.start_cursor = startCursor;
+    const result = await this.callTool("API-retrieve-a-comment", args);
+    return this.parseResult(result);
+  }
+
+  private parseResult(result: CallToolResult): any {
+    for (const item of result.content) {
+      if (item.type === "text") {
+        try {
+          return JSON.parse(item.text);
+        } catch (e) {
+          return item.text;
+        }
+      }
+    }
+    return result;
   }
 
   /**

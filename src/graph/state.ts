@@ -12,6 +12,8 @@ export interface AgentState {
   learnerProfile: LearnerProfile;
   /** 待执行的任务列表 */
   tasks: LearningTask[];
+  /** 用户输入的查询 (可选) */
+  userQuery?: string;
   
   // --- Internal State (内部状态) ---
   /** OCR 识别结果 (由 ocrNode 填充) */

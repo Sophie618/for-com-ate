@@ -9,6 +9,21 @@ import { NotionWritePayload } from "../types";
 const DEFAULT_BASE_URL = "https://aistudio.baidu.com/llm/lmapi/v3";
 const DEFAULT_MODEL = "ernie-4.5-turbo-vl";
 
+// Planning System Prompt
+const PLANNING_SYSTEM_PROMPT = [
+  "你是一名智能学习规划师。你的任务是根据用户的需求、OCR 识别的学习材料以及学习者画像，制定一份结构化的学习任务清单。",
+  "请输出一个 JSON 数组，数组中的每个对象代表一个具体的学习任务。",
+  "每个任务对象必须包含以下字段：",
+  "- `taskId`: 任务ID (例如 T1, T2...)",
+  "- `type`: 任务类型 (只能是 'annotation', 'analysis', 'organization', 'planning' 之一)",
+  "- `description`: 简短的任务描述",
+  "- `priority`: 优先级 (1-5，5最高)",
+  "- `dueDate`: (可选) 建议的截止时间，ISO 格式",
+  "",
+  "请确保任务逻辑清晰，循序渐进。例如：先批注，再解析，最后整理或计划。",
+  "只输出 JSON 数组，不要包含 Markdown 代码块标记或其他解释性文字。"
+].join("\n");
+
 // System Prompt
 const SYSTEM_PROMPT = [
   "> ",
@@ -39,27 +54,23 @@ const SYSTEM_PROMPT = [
   "6. **校验**：检查是否引用了明确证据、是否包含行动项与 Notion 属性，确认无遗漏。",
   "",
   "### 5. 输出规范",
-  "- **统一 Markdown 段落**，适合直接写入 Notion 页面（标题用 `##`，要点用 `-`）。",
-  "- 必须包含以下字段：",
-  "  - `## 摘要`：80 字内概述任务成果。",
-  "  - `## 关键内容`：按任务类型列出要点（批注/解析/整理/计划）。",
-  "  - `## 行动与提醒`：列出可执行步骤、截止时间、复盘建议。",
-  "  - `## 关联属性`：以列表形式列出需写入 Notion 的属性，如 `priority`、`dueDate`、`knowledgePoint`。",
-  "- 严禁输出：与任务无关的闲聊、未引用上下文的猜测、非结构化长段落。",
+  "- **格式要求**：输出标准的 Markdown 格式，确保层级清晰，适合直接写入 Notion 页面。",
+  "- **结构自适应**：请根据任务类型灵活调整文档结构。",
+  "  - 例如：`annotation` 任务可使用引用块或列表；`analysis` 任务可使用分步标题；`planning` 任务可使用复选框或时间轴。",
+  "- **必需字段**：文档末尾必须包含一个 `## 关联属性` 章节，以列表形式列出需写入 Notion 数据库的属性（如 `priority`, `dueDate`, `knowledgePoint`）。",
+  "- **严禁输出**：与任务无关的闲聊、未引用上下文的猜测。",
   "",
   "### 6. Few-Shot 示例",
   "**示例 1：annotation 任务**",
   "```",
   "输入概要：OCR 显示一次函数求解，学生未解释增长率；画像显示“偏好讲解+计划”；反馈提示“增加细节”。",
   "输出：",
-  "## 摘要",
-  "针对题干 1+1=? 的批注补充增长意义。",
-  "## 关键内容",
-  "- 批注：指出学生步骤正确，但需解释斜率 2 代表函数每增加 1 个 x，y 增加 2。",
-  "- 错因分析：缺少对实际应用的描述，复盘时需补写。",
-  "## 行动与提醒",
-  "- 本周内补写“斜率=增长率”小结。",
-  "- 复盘日期：2025-11-21。",
+  "### 题目批注",
+  "> 引用题干：1+1=?",
+  "",
+  "- **批注**：学生步骤正确，但需解释斜率 2 代表函数每增加 1 个 x，y 增加 2。",
+  "- **错因分析**：缺少对实际应用的描述，复盘时需补写。",
+  "",
   "## 关联属性",
   "- priority: 5",
   "- dueDate: 2025-11-21",
@@ -70,15 +81,15 @@ const SYSTEM_PROMPT = [
   "```",
   "输入概要：OCR 提供一次函数练习；任务描述“制定 3 日复盘计划”；反馈提示“缩短反馈周期”。",
   "输出：",
-  "## 摘要",
-  "制定 3 日复盘节奏，聚焦一次函数与增长解释。",
-  "## 关键内容",
-  "- D1：重写解题步骤，突出列方程→消元→结论。",
-  "- D2：将斜率意义整理成实际案例（速度/成本）。",
-  "- D3：自测 2 道变式题，记录错因。",
-  "## 行动与提醒",
-  "- 每天学习 30 分钟，完成后在 Notion 任务表标记。",
-  "- 复盘提醒：每天 20:00 自动评论提示。",
+  "### 3日复盘计划",
+  "目标：聚焦一次函数与增长解释。",
+  "",
+  "- [ ] **Day 1**：重写解题步骤，突出列方程→消元→结论。",
+  "- [ ] **Day 2**：将斜率意义整理成实际案例（速度/成本）。",
+  "- [ ] **Day 3**：自测 2 道变式题，记录错因。",
+  "",
+  "💡 **提醒**：每天 20:00 自动评论提示。",
+  "",
   "## 关联属性",
   "- priority: 4",
   "- dueDate: 2025-11-21",
@@ -130,9 +141,62 @@ export const createNodes = (
       console.log("OCR result already exists, skipping.");
       return {};
     }
-    const result = await ocrClient.runStructuredOcr(state.imagePath);
+     resultconst = await ocrClient.runStructuredOcr(state.imagePath);
     return { ocrResult: result };
     */
+  };
+
+  // 1.5 Planning Node
+  const planningNode = async (state: AgentState): Promise<Partial<AgentState>> => {
+    console.log("--- Node: Planning ---");
+
+    // Initialize Chat Model
+    const apiKey = process.env.WENXIN_API_KEY;
+    if (!apiKey) throw new Error("Missing WENXIN_API_KEY");
+    
+    const model = new ChatOpenAI({
+      apiKey,
+      configuration: {
+        baseURL: process.env.WENXIN_BASE_URL ?? DEFAULT_BASE_URL,
+      },
+      modelName: process.env.WENXIN_MODEL ?? DEFAULT_MODEL,
+      temperature: 0.1, // Lower temperature for structured output
+      maxTokens: 2048,
+    });
+
+    const spanPreview = JSON.stringify(state.ocrResult!.spans.slice(0, 10));
+    
+    const planningInput = [
+      `<learner>\nID: ${state.learnerProfile.learnerId}\n水平: ${state.learnerProfile.competencyLevel}\n目标: ${state.learnerProfile.learningGoal}\n偏好: ${state.learnerProfile.preferredStyle}\n</learner>`,
+      state.userQuery ? `<user-query>\n${state.userQuery}\n</user-query>` : "",
+      `<ocr-plain>\n${state.ocrResult!.plainText}\n</ocr-plain>`,
+      `<ocr-spans>\n${spanPreview}\n</ocr-spans>`
+    ].join("\n\n");
+
+    const prompt = ChatPromptTemplate.fromMessages([
+      ["system", PLANNING_SYSTEM_PROMPT],
+      ["user", "{input}"]
+    ]);
+
+    const chain = prompt.pipe(model);
+    const response = await chain.invoke({ input: planningInput });
+    
+    let content = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
+    
+    // Clean up potential markdown code blocks
+    content = content.replace(/```json/g, "").replace(/```/g, "").trim();
+
+    let tasks = [];
+    try {
+      tasks = JSON.parse(content);
+      console.log("Generated Plan:", JSON.stringify(tasks, null, 2));
+    } catch (e) {
+      console.error("Failed to parse planning output:", content);
+      // Fallback task if parsing fails
+      tasks = [{ taskId: "T1", type: "analysis", description: "解析题目 (自动规划失败)", priority: 5 }];
+    }
+
+    return { tasks };
   };
 
   // 2. Generation Node
@@ -165,6 +229,7 @@ export const createNodes = (
     const userPromptContent = [
       `<task>\n类型: ${task.type}\n描述: ${task.description}\n优先级: ${task.priority}\n截止: ${task.dueDate ?? "未设定"}\n</task>`,
       `<learner>\nID: ${state.learnerProfile.learnerId}\n水平: ${state.learnerProfile.competencyLevel}\n目标: ${state.learnerProfile.learningGoal}\n偏好: ${state.learnerProfile.preferredStyle}\n</learner>`,
+      state.userQuery ? `<user-query>\n${state.userQuery}\n</user-query>` : "",
       `<ocr-plain>\n${state.ocrResult!.plainText}\n</ocr-plain>`,
       `<ocr-markdown>\n${state.ocrResult!.markdownText}\n</ocr-markdown>`,
       `<ocr-table>\n${tablePreview}\n</ocr-table>`,
@@ -205,7 +270,7 @@ export const createNodes = (
       }
     };
 
-    const pageId = await notionClient.createPage(payload);
+    const { id: pageId } = await notionClient.createPage(payload);
     await notionClient.updatePage(pageId, { status: "generated" });
     await notionClient.createComment(pageId, `自动生成任务：${task.description}`);
 
@@ -215,5 +280,5 @@ export const createNodes = (
     };
   };
 
-  return { ocrNode, generationNode, notionNode };
+  return { ocrNode, planningNode, generationNode, notionNode };
 };

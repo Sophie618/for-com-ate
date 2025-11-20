@@ -84,12 +84,14 @@ class NotionMcpClient {
             children: children
         };
         const result = await this.callTool("API-post-page", args);
+        let pageUrl;
         // 尝试解析并打印页面 URL，方便用户直接打开
         try {
             for (const item of result.content) {
                 if (item.type === 'text') {
                     const data = JSON.parse(item.text);
                     if (data.url) {
+                        pageUrl = data.url;
                         console.log(`\n✨ Notion 页面已创建！点击链接直接打开:\n👉 ${data.url}\n`);
                     }
                 }
@@ -98,7 +100,10 @@ class NotionMcpClient {
         catch (e) {
             // 忽略解析错误，不影响流程
         }
-        return this.extractResourceIdentifier(result);
+        return {
+            id: this.extractResourceIdentifier(result),
+            url: pageUrl
+        };
     }
     /**
      * 更新页面属性：调用 API-patch-page。
@@ -169,6 +174,117 @@ class NotionMcpClient {
             console.warn("debugging: searchPage failed", error);
             return null;
         }
+    }
+    // --- Expanded Capabilities Implementation ---
+    async getUser(userId) {
+        const result = await this.callTool("API-get-user", { user_id: userId });
+        return this.parseResult(result);
+    }
+    async listUsers(pageSize, startCursor) {
+        const args = {};
+        if (pageSize)
+            args.page_size = pageSize;
+        if (startCursor)
+            args.start_cursor = startCursor;
+        const result = await this.callTool("API-get-users", args);
+        return this.parseResult(result);
+    }
+    async getSelf() {
+        const result = await this.callTool("API-get-self", {});
+        return this.parseResult(result);
+    }
+    async queryDatabase(databaseId, filter, sorts, pageSize, startCursor) {
+        const args = { database_id: databaseId };
+        if (filter)
+            args.filter = filter;
+        if (sorts)
+            args.sorts = sorts;
+        if (pageSize)
+            args.page_size = pageSize;
+        if (startCursor)
+            args.start_cursor = startCursor;
+        const result = await this.callTool("API-post-database-query", args);
+        return this.parseResult(result);
+    }
+    async search(query, filter, sort, pageSize, startCursor) {
+        const args = { query };
+        if (filter)
+            args.filter = filter;
+        if (sort)
+            args.sort = sort;
+        if (pageSize)
+            args.page_size = pageSize;
+        if (startCursor)
+            args.start_cursor = startCursor;
+        const result = await this.callTool("API-post-search", args);
+        return this.parseResult(result);
+    }
+    async getBlockChildren(blockId, pageSize, startCursor) {
+        const args = { block_id: blockId };
+        if (pageSize)
+            args.page_size = pageSize;
+        if (startCursor)
+            args.start_cursor = startCursor;
+        const result = await this.callTool("API-get-block-children", args);
+        return this.parseResult(result);
+    }
+    async appendBlockChildren(blockId, children) {
+        const result = await this.callTool("API-patch-block-children", { block_id: blockId, children });
+        return this.parseResult(result);
+    }
+    async retrieveBlock(blockId) {
+        const result = await this.callTool("API-retrieve-a-block", { block_id: blockId });
+        return this.parseResult(result);
+    }
+    async updateBlock(blockId, block) {
+        const result = await this.callTool("API-update-a-block", { block_id: blockId, ...block });
+        return this.parseResult(result);
+    }
+    async deleteBlock(blockId) {
+        const result = await this.callTool("API-delete-a-block", { block_id: blockId });
+        return this.parseResult(result);
+    }
+    async retrievePage(pageId) {
+        const result = await this.callTool("API-retrieve-a-page", { page_id: pageId });
+        return this.parseResult(result);
+    }
+    async createDatabase(parent, title, properties) {
+        const result = await this.callTool("API-create-a-database", { parent, title, properties });
+        return this.parseResult(result);
+    }
+    async updateDatabase(databaseId, properties) {
+        const result = await this.callTool("API-update-a-database", { database_id: databaseId, properties });
+        return this.parseResult(result);
+    }
+    async retrieveDatabase(databaseId) {
+        const result = await this.callTool("API-retrieve-a-database", { database_id: databaseId });
+        return this.parseResult(result);
+    }
+    async retrievePageProperty(pageId, propertyId) {
+        const result = await this.callTool("API-retrieve-a-page-property", { page_id: pageId, property_id: propertyId });
+        return this.parseResult(result);
+    }
+    async retrieveComments(blockId, pageSize, startCursor) {
+        const args = { block_id: blockId };
+        if (pageSize)
+            args.page_size = pageSize;
+        if (startCursor)
+            args.start_cursor = startCursor;
+        const result = await this.callTool("API-retrieve-a-comment", args);
+        return this.parseResult(result);
+    }
+    parseResult(result) {
+        for (const item of result.content) {
+            if (item.type === "text") {
+                try {
+                    return JSON.parse(item.text);
+                }
+                catch (e) {
+                    return item.text;
+                }
+            }
+        }
+        return result;
     }
     /**
      * 统一工具调用入口，确保在调用前完成连接。

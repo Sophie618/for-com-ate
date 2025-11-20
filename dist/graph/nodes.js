@@ -6,6 +6,20 @@ const prompts_1 = require("@langchain/core/prompts");
 // Default constants
 const DEFAULT_BASE_URL = "https://aistudio.baidu.com/llm/lmapi/v3";
 const DEFAULT_MODEL = "ernie-4.5-turbo-vl";
+// Planning System Prompt
+const PLANNING_SYSTEM_PROMPT = [
+    "你是一名智能学习规划师。你的任务是根据用户的需求、OCR 识别的学习材料以及学习者画像，制定一份结构化的学习任务清单。",
+    "请输出一个 JSON 数组，数组中的每个对象代表一个具体的学习任务。",
+    "每个任务对象必须包含以下字段：",
+    "- `taskId`: 任务ID (例如 T1, T2...)",
+    "- `type`: 任务类型 (只能是 'annotation', 'analysis', 'organization', 'planning' 之一)",
+    "- `description`: 简短的任务描述",
+    "- `priority`: 优先级 (1-5，5最高)",
+    "- `dueDate`: (可选) 建议的截止时间，ISO 格式",
+    "",
+    "请确保任务逻辑清晰，循序渐进。例如：先批注，再解析，最后整理或计划。",
+    "只输出 JSON 数组，不要包含 Markdown 代码块标记或其他解释性文字。"
+].join("\n");
 // System Prompt
 const SYSTEM_PROMPT = [
     "> ",
@@ -119,9 +133,53 @@ const createNodes = (ocrClient, notionClient) => {
           console.log("OCR result already exists, skipping.");
           return {};
         }
-        const result = await ocrClient.runStructuredOcr(state.imagePath);
+         resultconst = await ocrClient.runStructuredOcr(state.imagePath);
         return { ocrResult: result };
         */
+    };
+    // 1.5 Planning Node
+    const planningNode = async (state) => {
+        console.log("--- Node: Planning ---");
+        // Initialize Chat Model
+        const apiKey = process.env.WENXIN_API_KEY;
+        if (!apiKey)
+            throw new Error("Missing WENXIN_API_KEY");
+        const model = new openai_1.ChatOpenAI({
+            apiKey,
+            configuration: {
+                baseURL: process.env.WENXIN_BASE_URL ?? DEFAULT_BASE_URL,
+            },
+            modelName: process.env.WENXIN_MODEL ?? DEFAULT_MODEL,
+            temperature: 0.1, // Lower temperature for structured output
+            maxTokens: 2048,
+        });
+        const spanPreview = JSON.stringify(state.ocrResult.spans.slice(0, 10));
+        const planningInput = [
+            `<learner>\nID: ${state.learnerProfile.learnerId}\n水平: ${state.learnerProfile.competencyLevel}\n目标: ${state.learnerProfile.learningGoal}\n偏好: ${state.learnerProfile.preferredStyle}\n</learner>`,
+            state.userQuery ? `<user-query>\n${state.userQuery}\n</user-query>` : "",
+            `<ocr-plain>\n${state.ocrResult.plainText}\n</ocr-plain>`,
+            `<ocr-spans>\n${spanPreview}\n</ocr-spans>`
+        ].join("\n\n");
+        const prompt = prompts_1.ChatPromptTemplate.fromMessages([
+            ["system", PLANNING_SYSTEM_PROMPT],
+            ["user", "{input}"]
+        ]);
+        const chain = prompt.pipe(model);
+        const response = await chain.invoke({ input: planningInput });
+        let content = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
+        // Clean up potential markdown code blocks
+        content = content.replace(/```json/g, "").replace(/```/g, "").trim();
+        let tasks = [];
+        try {
+            tasks = JSON.parse(content);
+            console.log("Generated Plan:", JSON.stringify(tasks, null, 2));
+        }
+        catch (e) {
+            console.error("Failed to parse planning output:", content);
+            // Fallback task if parsing fails
+            tasks = [{ taskId: "T1", type: "analysis", description: "解析题目 (自动规划失败)", priority: 5 }];
+        }
+        return { tasks };
     };
     // 2. Generation Node
     const generationNode = async (state) => {
@@ -149,6 +207,7 @@ const createNodes = (ocrClient, notionClient) => {
         const userPromptContent = [
             `<task>\n类型: ${task.type}\n描述: ${task.description}\n优先级: ${task.priority}\n截止: ${task.dueDate ?? "未设定"}\n</task>`,
             `<learner>\nID: ${state.learnerProfile.learnerId}\n水平: ${state.learnerProfile.competencyLevel}\n目标: ${state.learnerProfile.learningGoal}\n偏好: ${state.learnerProfile.preferredStyle}\n</learner>`,
+            state.userQuery ? `<user-query>\n${state.userQuery}\n</user-query>` : "",
             `<ocr-plain>\n${state.ocrResult.plainText}\n</ocr-plain>`,
             `<ocr-markdown>\n${state.ocrResult.markdownText}\n</ocr-markdown>`,
             `<ocr-table>\n${tablePreview}\n</ocr-table>`,
@@ -180,7 +239,7 @@ const createNodes = (ocrClient, notionClient) => {
                 dueDate: task.dueDate ?? "未设定"
             }
         };
-        const pageId = await notionClient.createPage(payload);
+        const { id: pageId } = await notionClient.createPage(payload);
         await notionClient.updatePage(pageId, { status: "generated" });
         await notionClient.createComment(pageId, `自动生成任务：${task.description}`);
         return {
@@ -188,6 +247,6 @@ const createNodes = (ocrClient, notionClient) => {
             currentTaskIndex: state.currentTaskIndex + 1
         };
     };
-    return { ocrNode, generationNode, notionNode };
+    return { ocrNode, planningNode, generationNode, notionNode };
 };
 exports.createNodes = createNodes;

@@ -8,7 +8,7 @@ export const createWorkflow = (
   ocrClient: PaddleOcrClientInterface,
   notionClient: NotionClientInterface
 ) => {
-  const { ocrNode, generationNode, notionNode } = createNodes(ocrClient, notionClient);
+  const { ocrNode, planningNode, generationNode, notionNode } = createNodes(ocrClient, notionClient);
 
   // Define the graph
   const workflow = new StateGraph<AgentState>({
@@ -16,6 +16,7 @@ export const createWorkflow = (
       imagePath: null,
       learnerProfile: null,
       tasks: null,
+      userQuery: null,
       ocrResult: null,
       currentTaskIndex: null,
       generatedContents: null,
@@ -23,10 +24,12 @@ export const createWorkflow = (
     }
   })
     .addNode("ocr", ocrNode)
+    .addNode("planning", planningNode)
     .addNode("generate", generationNode)
     .addNode("notion", notionNode)
     .addEdge(START, "ocr")
-    .addEdge("ocr", "generate")
+    .addEdge("ocr", "planning")
+    .addEdge("planning", "generate")
     .addEdge("generate", "notion")
     .addConditionalEdges("notion", (state) => {
       if (state.currentTaskIndex < state.tasks.length) {

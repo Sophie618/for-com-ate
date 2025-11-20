@@ -4,13 +4,14 @@ exports.createWorkflow = void 0;
 const langgraph_1 = require("@langchain/langgraph");
 const nodes_1 = require("./nodes");
 const createWorkflow = (ocrClient, notionClient) => {
-    const { ocrNode, generationNode, notionNode } = (0, nodes_1.createNodes)(ocrClient, notionClient);
+    const { ocrNode, planningNode, generationNode, notionNode } = (0, nodes_1.createNodes)(ocrClient, notionClient);
     // Define the graph
     const workflow = new langgraph_1.StateGraph({
         channels: {
             imagePath: null,
             learnerProfile: null,
             tasks: null,
+            userQuery: null,
             ocrResult: null,
             currentTaskIndex: null,
             generatedContents: null,
@@ -18,10 +19,12 @@ const createWorkflow = (ocrClient, notionClient) => {
         }
     })
         .addNode("ocr", ocrNode)
+        .addNode("planning", planningNode)
         .addNode("generate", generationNode)
         .addNode("notion", notionNode)
         .addEdge(langgraph_1.START, "ocr")
-        .addEdge("ocr", "generate")
+        .addEdge("ocr", "planning")
+        .addEdge("planning", "generate")
         .addEdge("generate", "notion")
         .addConditionalEdges("notion", (state) => {
         if (state.currentTaskIndex < state.tasks.length) {
