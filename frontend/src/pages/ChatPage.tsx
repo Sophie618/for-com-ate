@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Paperclip, Image as ImageIcon, Settings, Plus, MessageSquare, User, BrainCircuit, ChevronRight, UploadCloud, FileText, Mic } from 'lucide-react';
+import { Send, Paperclip, Image as ImageIcon, Settings, Plus, MessageSquare, User, BrainCircuit, ChevronRight, UploadCloud, FileText, Mic, Copy, Edit2, ArrowUp, AudioLines, ThumbsUp, ThumbsDown, Share, RotateCw, MoreHorizontal, Volume2, Flag, GitBranch } from 'lucide-react';
 import ProfileModal from '../components/ProfileModal';
 import ThinkingSidebar from '../components/ThinkingSidebar';
 
@@ -14,6 +14,7 @@ interface Message {
 const ChatPage: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [profile, setProfile] = useState<any>({
     competencyLevel: '中等',
@@ -199,36 +200,46 @@ const ChatPage: React.FC = () => {
               </div>
 
               {/* Input Area (Centered) */}
-              <div className="w-full relative">
-                <div className="relative flex items-end gap-2 bg-white border border-gray-200 rounded-2xl shadow-lg focus-within:ring-1 focus-within:ring-black/10 focus-within:border-gray-300 transition-all overflow-hidden p-2">
+              <div className="w-full max-w-3xl relative">
+                <div className="relative flex items-center gap-2 bg-[#f4f4f4] rounded-[26px] px-4 py-2 focus-within:ring-1 focus-within:ring-black/5 transition-all">
                   <button 
                     onClick={() => fileInputRef.current?.click()}
-                    className="p-3 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors flex-shrink-0"
+                    className="p-2 text-gray-900 hover:bg-gray-200 rounded-full transition-colors flex-shrink-0"
                   >
-                    <Plus size={24} />
+                    <Plus size={24} strokeWidth={2} />
                   </button>
                   
                   <textarea
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="学习任何东西..."
-                    className="w-full max-h-[200px] py-3 px-2 bg-transparent border-none focus:ring-0 resize-none text-gray-900 placeholder-gray-400 text-lg"
+                    placeholder="询问任何问题"
+                    className="w-full max-h-[200px] py-3 px-2 bg-transparent border-none focus:ring-0 resize-none text-gray-900 placeholder-gray-500 text-lg"
                     rows={1}
                     style={{ minHeight: '52px' }}
                   />
                   
-                  <button 
-                    onClick={handleSend}
-                    disabled={!input.trim() && !fileInputRef.current?.files?.length}
-                    className={`p-2 rounded-xl transition-all flex-shrink-0 self-end mb-1 ${
-                      input.trim() || fileInputRef.current?.files?.length
-                        ? 'bg-black text-white hover:bg-gray-800' 
-                        : 'bg-gray-100 text-gray-300 cursor-not-allowed'
-                    }`}
-                  >
-                    <Send size={20} />
-                  </button>
+                  <div className="flex items-center gap-2 pr-1">
+                    {!input.trim() && (
+                      <button className="text-gray-900 hover:bg-gray-200 p-2 rounded-full transition-colors">
+                        <Mic size={24} />
+                      </button>
+                    )}
+                    <button 
+                      onClick={handleSend}
+                      disabled={!input.trim() && !fileInputRef.current?.files?.length}
+                      className={`w-10 h-10 rounded-full flex items-center justify-center transition-all flex-shrink-0 ${
+                        input.trim() || fileInputRef.current?.files?.length
+                          ? 'bg-black text-white hover:bg-gray-800' 
+                          : 'bg-black text-white'
+                      }`}
+                    >
+                      {input.trim() ? <ArrowUp size={20} /> : <AudioLines size={20} />}
+                    </button>
+                  </div>
+                </div>
+                <div className="text-center mt-3 text-xs text-gray-500">
+                  SophieSync 可能也会犯错。请核查重要信息。
                 </div>
               </div>
             </div>
@@ -239,52 +250,111 @@ const ChatPage: React.FC = () => {
             <div className="flex-1 overflow-y-auto p-4 md:p-0 scroll-smooth">
               <div className="max-w-3xl mx-auto py-8 space-y-8 pb-32">
                 {messages.map((msg) => (
-                  <div key={msg.id} className={`flex gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                    <div className={`w-8 h-8 rounded-sm flex items-center justify-center flex-shrink-0 ${
-                      msg.role === 'assistant' ? 'bg-green-500' : 'bg-gray-200'
-                    }`}>
-                      {msg.role === 'assistant' ? <BrainCircuit size={18} className="text-white" /> : <User size={18} className="text-gray-600" />}
-                    </div>
+                  <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                     
-                    <div className={`flex flex-col max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                      {msg.role === 'assistant' && (
-                        <span className="text-xs font-bold text-gray-800 mb-1 ml-1">Sophie</span>
+                    <div className={`max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                      {/* Thinking Process Indicator (Collapsed) */}
+                      {msg.thinkingSteps && (
+                        <div className="mb-2">
+                          <button
+                            onClick={() => openThinkingSidebar(msg.thinkingSteps!)}
+                            className="flex items-center gap-2 text-xs text-gray-500 hover:text-black transition-colors bg-gray-50 px-3 py-1.5 rounded-full border border-gray-200 hover:border-gray-300 group"
+                          >
+                            <BrainCircuit size={12} className="text-gray-400 group-hover:text-black transition-colors" />
+                            <span className="font-medium">已思考 7s</span>
+                            <ChevronRight size={12} />
+                          </button>
+                        </div>
                       )}
+
                       <div className="prose prose-sm max-w-none">
                         {msg.attachments && msg.attachments.map((url, i) => (
                           <img key={i} src={url} alt="upload" className="max-w-xs rounded-lg mb-2 border border-gray-200" />
                         ))}
-                        <div className={`py-1 ${
+                        <div className={`py-2 px-4 rounded-2xl ${
                           msg.role === 'user' 
-                            ? 'bg-gray-100 text-gray-900 px-4 py-3 rounded-2xl rounded-tr-none' 
+                            ? 'bg-[#f4f4f4] text-gray-900' 
                             : 'bg-transparent text-gray-900 px-0'
                         }`}>
                           {msg.content}
                         </div>
+                        
+                        {/* Action Buttons */}
+                        <div className={`flex items-center gap-1 mt-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                          <button 
+                            onClick={() => navigator.clipboard.writeText(msg.content)}
+                            className="p-1.5 text-gray-400 hover:text-gray-900 transition-colors rounded-md hover:bg-gray-100"
+                            title="复制"
+                          >
+                            <Copy size={16} />
+                          </button>
+                          
+                          {msg.role === 'assistant' && (
+                            <>
+                              <button className="p-1.5 text-gray-400 hover:text-gray-900 transition-colors rounded-md hover:bg-gray-100" title="赞">
+                                <ThumbsUp size={16} />
+                              </button>
+                              <button className="p-1.5 text-gray-400 hover:text-gray-900 transition-colors rounded-md hover:bg-gray-100" title="踩">
+                                <ThumbsDown size={16} />
+                              </button>
+                              <button className="p-1.5 text-gray-400 hover:text-gray-900 transition-colors rounded-md hover:bg-gray-100" title="分享">
+                                <Share size={16} />
+                              </button>
+                              <button className="p-1.5 text-gray-400 hover:text-gray-900 transition-colors rounded-md hover:bg-gray-100" title="重新生成">
+                                <RotateCw size={16} />
+                              </button>
+                              
+                              <div className="relative">
+                                <button 
+                                  onClick={() => setOpenMenuId(openMenuId === msg.id ? null : msg.id)}
+                                  className="p-1.5 text-gray-400 hover:text-gray-900 transition-colors rounded-md hover:bg-gray-100"
+                                  title="更多"
+                                >
+                                  <MoreHorizontal size={16} />
+                                </button>
+                                
+                                {openMenuId === msg.id && (
+                                  <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-10 py-1 overflow-hidden">
+                                    <button className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                                      <GitBranch size={16} />
+                                      <span>新聊天中的分支</span>
+                                    </button>
+                                    <button className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                                      <Volume2 size={16} />
+                                      <span>朗读</span>
+                                    </button>
+                                    <button className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                                      <Flag size={16} />
+                                      <span>举报消息</span>
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </>
+                          )}
+
+                          {msg.role === 'user' && (
+                            <button 
+                              onClick={() => setInput(msg.content)}
+                              className="p-1.5 text-gray-400 hover:text-gray-900 transition-colors rounded-md hover:bg-gray-100"
+                              title="编辑"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      
-                      {msg.thinkingSteps && (
-                        <button
-                          onClick={() => openThinkingSidebar(msg.thinkingSteps!)}
-                          className="mt-2 flex items-center gap-2 text-xs text-gray-500 hover:text-violet-600 transition-colors bg-gray-50 px-3 py-2 rounded-lg border border-gray-100 hover:border-violet-200 group"
-                        >
-                          <BrainCircuit size={14} className="text-violet-500 group-hover:scale-110 transition-transform" />
-                          <span className="font-medium">已思考 7s</span>
-                          <ChevronRight size={14} />
-                        </button>
-                      )}
                     </div>
                   </div>
                 ))}
                 {isLoading && (
-                  <div className="flex gap-4">
-                     <div className="w-8 h-8 rounded-sm bg-green-500 flex items-center justify-center flex-shrink-0">
-                        <BrainCircuit size={18} className="text-white" />
-                     </div>
-                     <div className="flex items-center gap-2 text-gray-500 text-sm mt-2">
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-75" />
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-150" />
+                  <div className="flex flex-col items-start animate-in fade-in duration-300">
+                     <div className="flex items-center gap-3 px-4 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm">
+                        <div className="relative w-4 h-4 flex items-center justify-center">
+                          <div className="absolute inset-0 bg-black rounded-full opacity-20 animate-ping" />
+                          <div className="w-2.5 h-2.5 bg-black rounded-full" />
+                        </div>
+                        <span className="text-sm font-medium text-gray-600">思考中...</span>
                      </div>
                   </div>
                 )}
@@ -294,12 +364,12 @@ const ChatPage: React.FC = () => {
             {/* Input Area (Bottom) */}
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-transparent pt-10 pb-6 px-4 md:px-0">
               <div className="max-w-3xl mx-auto relative">
-                <div className="relative flex items-end gap-2 bg-white border border-gray-200 rounded-2xl shadow-lg focus-within:ring-1 focus-within:ring-black/10 focus-within:border-gray-300 transition-all overflow-hidden p-2">
+                <div className="relative flex items-center gap-2 bg-[#f4f4f4] rounded-[26px] px-4 py-2 focus-within:ring-1 focus-within:ring-black/5 transition-all">
                   <button 
                     onClick={() => fileInputRef.current?.click()}
-                    className="p-3 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors flex-shrink-0"
+                    className="p-2 text-gray-900 hover:bg-gray-200 rounded-full transition-colors flex-shrink-0"
                   >
-                    <Plus size={24} />
+                    <Plus size={24} strokeWidth={2} />
                   </button>
                   
                   <textarea
@@ -325,7 +395,7 @@ const ChatPage: React.FC = () => {
                   </button>
                 </div>
                 <div className="text-center mt-2 text-xs text-gray-400">
-                  SophieSync 可能也会犯错。请核查重要信息。
+                  Sophie 可能也会犯错。请核查重要信息。
                 </div>
               </div>
             </div>
