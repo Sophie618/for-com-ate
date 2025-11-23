@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, HelpCircle } from 'lucide-react';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -160,21 +160,45 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, onSubmit, 
               <p className="text-gray-500">这将帮助我们调整讲解的深度和难度</p>
             </div>
             
-            <div className="grid grid-cols-1 gap-4 w-full max-w-md">
-              {['初学', '中等', '精通'].map((level) => (
-                <button
-                  key={level}
-                  onClick={() => setFormData({ ...formData, competencyLevel: level })}
-                  className={`p-6 rounded-2xl border-2 text-lg font-medium transition-all flex items-center justify-between group ${
-                    formData.competencyLevel === level
-                      ? 'border-black bg-black text-white shadow-lg scale-[1.02]'
-                      : 'border-gray-100 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  <span>{level}</span>
-                  {formData.competencyLevel === level && <div className="w-3 h-3 bg-green-400 rounded-full" />}
-                </button>
-              ))}
+            <div className="grid grid-cols-3 gap-4 w-full max-w-4xl">
+              {['初学', '中等', '精通'].map((level) => {
+                const descriptions: Record<string, string> = {
+                  '初学': '仅了解或听说过一些基础概念，或第一次接触该领域',
+                  '中等': '掌握和了解基本概念，能解决简单问题，但复杂应用尚需练习',
+                  '精通': '深刻理解底层逻辑，能灵活运用并解决复杂问题'
+                };
+                
+                return (
+                  <button
+                    key={level}
+                    onClick={() => setFormData({ ...formData, competencyLevel: level })}
+                    className={`relative p-6 rounded-2xl border-2 text-lg font-medium transition-all flex flex-col items-center justify-center gap-2 group hover:z-50 ${
+                      formData.competencyLevel === level
+                        ? 'border-black bg-black text-white shadow-lg scale-[1.02] z-10'
+                        : 'border-gray-100 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>{level}</span>
+                      <div className="group/tooltip relative">
+                        <div className={`rounded-full border p-0.5 ${
+                          formData.competencyLevel === level ? 'border-white/30 text-white/70' : 'border-gray-300 text-gray-400'
+                        }`}>
+                          <HelpCircle size={12} />
+                        </div>
+                        
+                        {/* Tooltip */}
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-gray-600/70 backdrop-blur-sm text-white text-xs rounded-lg shadow-xl opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all z-50 pointer-events-none">
+                          {descriptions[level]}
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-600/70"></div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {formData.competencyLevel === level && <div className="w-2 h-2 bg-green-400 rounded-full" />}
+                  </button>
+                );
+              })}
             </div>
           </div>
         );
@@ -186,7 +210,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, onSubmit, 
               <p className="text-gray-500">选择最适合你的互动模式</p>
             </div>
             
-            <div className="grid grid-cols-1 gap-4 w-full max-w-md">
+            <div className="grid grid-cols-3 gap-4 w-full max-w-4xl">
               {[
                 { value: '讲解+计划', label: '讲解 + 复盘计划', desc: '平衡理论与实践' },
                 { value: '练习为主', label: '大量练习题', desc: '通过实战巩固知识' },
@@ -195,15 +219,17 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, onSubmit, 
                 <button
                   key={style.value}
                   onClick={() => setFormData({ ...formData, preferredStyle: style.value })}
-                  className={`p-6 rounded-2xl border-2 text-left transition-all ${
+                  className={`p-6 rounded-2xl border-2 text-left transition-all h-full flex flex-col justify-between ${
                     formData.preferredStyle === style.value
                       ? 'border-black bg-black text-white shadow-lg scale-[1.02]'
                       : 'border-gray-100 bg-white hover:border-gray-300 hover:bg-gray-50'
                   }`}
                 >
-                  <div className="font-bold text-lg">{style.label}</div>
-                  <div className={`text-sm mt-1 ${formData.preferredStyle === style.value ? 'text-gray-400' : 'text-gray-500'}`}>
-                    {style.desc}
+                  <div>
+                    <div className="font-bold text-lg mb-2">{style.label}</div>
+                    <div className={`text-sm ${formData.preferredStyle === style.value ? 'text-gray-400' : 'text-gray-500'}`}>
+                      {style.desc}
+                    </div>
                   </div>
                 </button>
               ))}
