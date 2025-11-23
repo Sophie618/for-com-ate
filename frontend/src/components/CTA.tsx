@@ -2,7 +2,11 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
-const CTA: React.FC = () => {
+interface CTAProps {
+  onStartClick?: () => void;
+}
+
+const CTA: React.FC<CTAProps> = ({ onStartClick }) => {
   const navigate = useNavigate();
 
   return (
@@ -23,7 +27,13 @@ const CTA: React.FC = () => {
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          onClick={() => navigate('/chat')}
+          onClick={() => {
+            if (onStartClick) {
+              onStartClick();
+            } else {
+              navigate('/chat');
+            }
+          }}
           className="px-8 py-4 text-lg font-semibold text-white bg-black rounded-full shadow-lg hover:bg-gray-800 transition-colors"
         >
           Get Started
