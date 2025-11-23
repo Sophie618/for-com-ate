@@ -2,7 +2,11 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 
-const Navbar: React.FC = () => {
+interface NavbarProps {
+  onLoginClick?: () => void;
+}
+
+const Navbar: React.FC<NavbarProps> = ({ onLoginClick }) => {
   return (
     <motion.nav
       initial={{ y: -100 }}
@@ -17,12 +21,18 @@ const Navbar: React.FC = () => {
       </div>
       
       <div className="flex items-center gap-4">
-        <button className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
+        <button 
+          onClick={onLoginClick}
+          className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+        >
           Log in
         </button>
-        <Link to="/chat" className="px-4 py-2 text-sm font-medium text-white bg-black rounded-full hover:bg-gray-800 transition-colors">
+        <button 
+          onClick={onLoginClick}
+          className="px-4 py-2 text-sm font-medium text-white bg-black rounded-full hover:bg-gray-800 transition-colors"
+        >
           Get Started
-        </Link>
+        </button>
       </div>
     </motion.nav>
   );

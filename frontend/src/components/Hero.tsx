@@ -2,7 +2,11 @@ import React, { useRef } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
-const Hero: React.FC = () => {
+interface HeroProps {
+  onStartClick?: () => void;
+}
+
+const Hero: React.FC<HeroProps> = ({ onStartClick }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   
@@ -23,6 +27,7 @@ const Hero: React.FC = () => {
       ref={containerRef} 
       className="relative flex flex-col items-center justify-start min-h-[120vh] pt-32 pb-20 overflow-hidden bg-gradient-to-b from-white to-gray-50"
     >
+      
       {/* 文本内容 */}
       <div className="z-10 flex flex-col items-center text-center max-w-4xl px-4 mb-16">
         <motion.h1 
@@ -53,7 +58,13 @@ const Hero: React.FC = () => {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           transition={{ duration: 0.3, delay: 0.4 }}
-          onClick={() => navigate('/chat')}
+          onClick={() => {
+            if (onStartClick) {
+              onStartClick();
+            } else {
+              navigate('/chat');
+            }
+          }}
           className="px-8 py-4 text-lg font-semibold text-white bg-black rounded-full shadow-lg hover:shadow-xl hover:bg-gray-800 transition-all"
         >
           Start Learning

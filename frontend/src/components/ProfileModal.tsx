@@ -154,7 +154,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, onSubmit, 
         );
       case 2:
         return (
-          <div className="flex flex-col items-center text-center space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="w-full flex flex-col items-center text-center space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="space-y-2">
               <h2 className="text-3xl font-bold text-gray-900">你当前的掌握水平如何？</h2>
               <p className="text-gray-500">这将帮助我们调整讲解的深度和难度</p>
@@ -172,13 +172,14 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, onSubmit, 
                   <button
                     key={level}
                     onClick={() => setFormData({ ...formData, competencyLevel: level })}
-                    className={`relative p-6 rounded-2xl border-2 text-lg font-medium transition-all flex flex-col items-center justify-center gap-2 group hover:z-50 ${
+                    className={`relative w-full p-6 rounded-2xl border-2 text-lg font-medium transition-all flex flex-col items-center justify-center gap-2 group hover:z-50 ${
                       formData.competencyLevel === level
                         ? 'border-black bg-black text-white shadow-lg scale-[1.02] z-10'
                         : 'border-gray-100 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
                     }`}
                   >
                     <div className="flex items-center gap-2">
+                      {formData.competencyLevel === level && <div className="w-2 h-2 bg-green-400 rounded-full" />}
                       <span>{level}</span>
                       <div className="group/tooltip relative">
                         <div className={`rounded-full border p-0.5 ${
@@ -194,8 +195,6 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, onSubmit, 
                         </div>
                       </div>
                     </div>
-                    
-                    {formData.competencyLevel === level && <div className="w-2 h-2 bg-green-400 rounded-full" />}
                   </button>
                 );
               })}
