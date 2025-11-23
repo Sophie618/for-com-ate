@@ -11,7 +11,7 @@ const testimonials = [
   {
     name: "Rohan Robinson",
     role: "Software Engineer, Independent",
-    content: "Youlearn.ai is awesome , just used it to learn from a biotech roundtable discussion!",
+    content: "Sophie is awesome , just used it to learn from a biotech roundtable discussion!",
     image: "https://api.dicebear.com/7.x/avataaars/svg?seed=Rohan"
   },
   {

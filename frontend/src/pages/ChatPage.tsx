@@ -153,7 +153,7 @@ const ChatPage: React.FC = () => {
       <div className="flex-1 flex flex-col relative bg-white h-full">
         {/* Mobile Header */}
         <div className="md:hidden h-14 border-b border-gray-200 flex items-center justify-between px-4 bg-white z-10 flex-shrink-0">
-          <span className="font-bold text-gray-800">SmartLearn</span>
+          <span className="font-bold text-gray-800">SophieSync</span>
           <button onClick={() => setIsProfileOpen(true)}><Settings size={20} className="text-gray-600" /></button>
         </div>
 
@@ -243,6 +243,9 @@ const ChatPage: React.FC = () => {
                     </div>
                     
                     <div className={`flex flex-col max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                      {msg.role === 'assistant' && (
+                        <span className="text-xs font-bold text-gray-800 mb-1 ml-1">Sophie</span>
+                      )}
                       <div className="prose prose-sm max-w-none">
                         {msg.attachments && msg.attachments.map((url, i) => (
                           <img key={i} src={url} alt="upload" className="max-w-xs rounded-lg mb-2 border border-gray-200" />
@@ -318,7 +321,7 @@ const ChatPage: React.FC = () => {
                   </button>
                 </div>
                 <div className="text-center mt-2 text-xs text-gray-400">
-                  SmartLearn 可能也会犯错。请核查重要信息。
+                  SophieSync 可能也会犯错。请核查重要信息。
                 </div>
               </div>
             </div>
@@ -343,6 +346,7 @@ const ChatPage: React.FC = () => {
         onClose={() => setIsProfileOpen(false)} 
         onSubmit={handleProfileSubmit}
         initialData={profile}
+        mode={profile ? 'modal' : 'wizard'}
       />
     </div>
   );

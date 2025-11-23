@@ -1,8 +1,10 @@
 import React, { useRef } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 
 const Hero: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
   
   // 获取滚动进度
   const { scrollYProgress } = useScroll({
@@ -51,6 +53,7 @@ const Hero: React.FC = () => {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           transition={{ duration: 0.3, delay: 0.4 }}
+          onClick={() => navigate('/chat')}
           className="px-8 py-4 text-lg font-semibold text-white bg-black rounded-full shadow-lg hover:shadow-xl hover:bg-gray-800 transition-all"
         >
           Start Learning
