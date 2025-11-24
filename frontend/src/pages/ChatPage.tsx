@@ -18,10 +18,13 @@ const ChatPage: React.FC = () => {
   const [input, setInput] = useState('');
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [profile, setProfile] = useState<any>({
-    competencyLevel: '中等',
-    learningGoal: '',
-    preferredStyle: '讲解+计划'
+  const [profile, setProfile] = useState<any>(() => {
+    const saved = localStorage.getItem('learnerProfile');
+    return saved ? JSON.parse(saved) : {
+      competencyLevel: '中等',
+      learningGoal: '',
+      preferredStyle: '讲解+计划'
+    };
   });
   const [isLoading, setIsLoading] = useState(false);
   
@@ -69,6 +72,12 @@ const ChatPage: React.FC = () => {
       const formData = new FormData();
       if (file) formData.append('image', file);
       formData.append('profile', JSON.stringify(profile));
+      
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      if (user.learnerId) {
+        formData.append('learnerId', user.learnerId);
+      }
+
       formData.append('message', input);
 
       const response = await fetch('http://localhost:3001/api/analyze', {

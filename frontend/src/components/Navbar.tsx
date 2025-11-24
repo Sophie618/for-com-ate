@@ -4,9 +4,11 @@ import { Link } from 'react-router-dom';
 
 interface NavbarProps {
   onLoginClick?: () => void;
+  user?: any;
+  onLogout?: () => void;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ onLoginClick }) => {
+const Navbar: React.FC<NavbarProps> = ({ onLoginClick, user, onLogout }) => {
   return (
     <motion.nav
       initial={{ y: -100 }}
@@ -21,18 +23,34 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick }) => {
       </div>
       
       <div className="flex items-center gap-4">
-        <button 
-          onClick={onLoginClick}
-          className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-        >
-          Log in
-        </button>
-        <button 
-          onClick={onLoginClick}
-          className="px-4 py-2 text-sm font-medium text-white bg-black rounded-full hover:bg-gray-800 transition-colors"
-        >
-          Get Started
-        </button>
+        {user ? (
+          <>
+            <span className="text-sm font-medium text-gray-600">
+              {user.email}
+            </span>
+            <button 
+              onClick={onLogout}
+              className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              Log out
+            </button>
+          </>
+        ) : (
+          <>
+            <button 
+              onClick={onLoginClick}
+              className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              Log in
+            </button>
+            <button 
+              onClick={onLoginClick}
+              className="px-4 py-2 text-sm font-medium text-white bg-black rounded-full hover:bg-gray-800 transition-colors"
+            >
+              Get Started
+            </button>
+          </>
+        )}
       </div>
     </motion.nav>
   );

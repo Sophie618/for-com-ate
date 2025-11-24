@@ -8,6 +8,7 @@ import { NotionMcpClient } from "./clients/notion-client";
 import { createWorkflow } from "./graph";
 import { LearnerProfile, LearningTask } from "./types";
 import { FeedbackLoopManager } from "./utils/feedback-loop";
+import { createUser, findUserByEmail } from "./db";
 
 const app = express();
 const port = 3001;
@@ -36,6 +37,58 @@ const ocrClient = new PaddleOcrMcpClient();
 const notionClient = new NotionMcpClient();
 const feedbackManager = new FeedbackLoopManager();
 
+// Auth Endpoints
+app.post('/api/register', (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    const existingUser = findUserByEmail(email);
+    if (existingUser) {
+      return res.status(400).json({ error: 'User already exists' });
+    }
+
+    const newUser = createUser(email, password);
+    res.json({
+      success: true,
+      user: {
+        id: newUser.id,
+        email: newUser.email,
+        learnerId: newUser.learnerId
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/login', (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    const user = findUserByEmail(email);
+    if (!user || user.password !== password) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        learnerId: user.learnerId
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Helper to find parent page
 async function findParentPage(notionClient: NotionMcpClient): Promise<string> {
   try {
@@ -61,18 +114,25 @@ app.post('/api/analyze', upload.single('image'), async (req: Request, res: Respo
     const profileData = JSON.parse(req.body.profile || '{}');
     const imagePath = req.file ? path.resolve(req.file.path) : "";
     const userQuery = req.body.message || "";
+    const learnerId = req.body.learnerId;
 
     console.log("Processing request");
     if (imagePath) console.log("Image:", imagePath);
     console.log("User Query:", userQuery);
     console.log("Learner Profile:", profileData);
+    if (learnerId) console.log("Learner ID:", learnerId);
 
     // 1. Find Parent Page (Learner ID)
     // In a real app, this might be cached or passed from frontend if known
-    const parentPageId = await findParentPage(notionClient);
+    // If learnerId is provided (from auth), we might use it to find a specific page
+    // For now, we still default to finding "Learning Dashboard" but we could use learnerId to find a user-specific page
+    let parentPageId = await findParentPage(notionClient);
+    
+    // TODO: In the future, use learnerId to find/create a specific dashboard page for the user
+    // if (learnerId) { ... }
 
     const learnerProfile: LearnerProfile = {
-      learnerId: parentPageId,
+      learnerId: learnerId || parentPageId, // Use provided learnerId if available, otherwise fallback to page ID
       competencyLevel: profileData.competencyLevel || "中等",
       learningGoal: profileData.learningGoal || "巩固知识点",
       preferredStyle: profileData.preferredStyle || "讲解+计划"

@@ -4,7 +4,7 @@ import { X, Eye, EyeOff, Mail, Lock } from 'lucide-react';
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onLogin: () => void;
+  onLogin: (user: any) => void;
 }
 
 const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin }) => {
@@ -12,13 +12,40 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, you would handle authentication here
-    onLogin();
+    setError('');
+    setLoading(true);
+
+    try {
+      const endpoint = isLogin ? 'http://localhost:3001/api/login' : 'http://localhost:3001/api/register';
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Authentication failed');
+      }
+
+      if (data.success && data.user) {
+        onLogin(data.user);
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -43,6 +70,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin }) => {
             {isLogin ? '让我们继续您的学习之旅。' : '开始您的个性化学习体验。'}
           </p>
         </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 text-red-500 text-sm rounded-lg">
+            {error}
+          </div>
+        )}
 
         <button className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors mb-6 group">
           <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
@@ -104,9 +137,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin }) => {
 
           <button
             type="submit"
-            className="w-full py-3 bg-gray-500 hover:bg-gray-600 text-white font-medium rounded-xl transition-colors shadow-lg shadow-gray-200"
+            disabled={loading}
+            className="w-full py-3 bg-gray-500 hover:bg-gray-600 text-white font-medium rounded-xl transition-colors shadow-lg shadow-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isLogin ? '登录' : '注册'}
+            {loading ? '处理中...' : (isLogin ? '登录' : '注册')}
           </button>
         </form>
 

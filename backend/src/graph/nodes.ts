@@ -60,6 +60,7 @@ const PLANNING_SYSTEM_PROMPT = [
   "",
   "## 关键规则与注意事项",
   "1. **信息来源灵活性**：你可根据实际接收到的信息（用户请求、OCR、画像）动态调整任务内容，不强制要求三要素齐全。",
+  "   - 若 `<ocr-content>` 为空或提示未上传图片，请完全基于 `<user-query>` 生成任务（例如用户只是在问一个概念，不需要OCR）。",
   "2. **任务拆分原则**：当用户请求涉及多个动作或目标时，必须拆分为独立子任务，确保每个任务描述单一且完整。",
   "   - **重要**：如果用户请求非常简单（如“创建一个页面”），请生成**单个** execution 类型的任务，不要拆分为 analysis + execution，除非任务非常复杂。",
   "3. **工具调用明确性**：所有 execution 类型任务的描述中，必须包含具体的工具调用指令（如“调用notion_create_page”、“调用notion_append_content”）。",
@@ -141,45 +142,45 @@ export const createNodes = (
 
   // 1. OCR Node
   const ocrNode = async (state: AgentState): Promise<Partial<AgentState>> => {
-    console.log("--- Node: OCR (Mocked) ---");
+    console.log("--- Node: OCR ---");
     
-    // Mock OCR result to skip actual MCP call
-    const mockResult = {
-      originalPath: state.imagePath,
-      plainText: "Mock OCR Text: 这是一个关于一次函数的数学题。已知 y = 2x + 1，求当 x=3 时的值。",
-      markdownText: "# Mock OCR Markdown\n\n这是一个关于一次函数的数学题。\n\n已知 $y = 2x + 1$，求当 $x=3$ 时的值。",
-      tableData: [],
-      spans: [
-        {
-          lineId: "1",
-          text: "这是一个关于一次函数的数学题。",
-          confidence: 0.99,
-          boundingBox: [0, 0, 100, 20],
-          classification: "text",
-          sourceMeta: {}
-        },
-        {
-          lineId: "2",
-          text: "已知 y = 2x + 1，求当 x=3 时的值。",
-          confidence: 0.98,
-          boundingBox: [0, 30, 100, 50],
-          classification: "question",
-          sourceMeta: {}
-        }
-      ]
-    };
-    
-    return { ocrResult: mockResult };
-
-    /* 
-    // Original implementation
     if (state.ocrResult) {
       console.log("OCR result already exists, skipping.");
       return {};
     }
-     resultconst = await ocrClient.runStructuredOcr(state.imagePath);
-    return { ocrResult: result };
-    */
+
+    if (!state.imagePath) {
+      console.log("No image path provided, skipping OCR.");
+      return {
+        ocrResult: {
+          originalPath: "",
+          plainText: "",
+          markdownText: "",
+          tableData: [],
+          spans: []
+        }
+      };
+    }
+
+    try {
+      console.log(`Running OCR on: ${state.imagePath}`);
+      const result = await ocrClient.runStructuredOcr(state.imagePath);
+      console.log("OCR completed successfully.");
+      return { ocrResult: result };
+    } catch (error: any) {
+      console.error("OCR failed:", error);
+      // Return empty result or throw depending on strictness
+      // For now, return empty to allow workflow to proceed (maybe user just asked a text question)
+      return {
+        ocrResult: {
+          originalPath: state.imagePath,
+          plainText: "",
+          markdownText: `(OCR Failed: ${error.message})`,
+          tableData: [],
+          spans: []
+        }
+      };
+    }
   };
 
   // 1.5 Planning Node
@@ -200,13 +201,25 @@ export const createNodes = (
       maxTokens: 2048,
     });
 
-    const spanPreview = JSON.stringify(state.ocrResult!.spans.slice(0, 10));
+    const hasOcrContent = state.ocrResult && state.ocrResult.plainText.trim().length > 0;
     
     const planningInput = [
+      `当前上下文信息：`,
       `<learner>\nID: ${state.learnerProfile.learnerId}\n水平: ${state.learnerProfile.competencyLevel}\n目标: ${state.learnerProfile.learningGoal}\n偏好: ${state.learnerProfile.preferredStyle}\n</learner>`,
-      state.userQuery ? `<user-query>\n${state.userQuery}\n</user-query>` : "",
-      `<ocr-plain>\n${state.ocrResult!.plainText}\n</ocr-plain>`,
-      `<ocr-spans>\n${spanPreview}\n</ocr-spans>`
+      
+      // 强调 User Query
+      state.userQuery 
+        ? `<user-query>\n${state.userQuery}\n</user-query>` 
+        : `<user-query>（用户未输入文字，仅上传了图片或无操作）</user-query>`,
+      
+      // 明确 OCR 状态
+      hasOcrContent
+        ? `<ocr-content>\n${state.ocrResult!.plainText}\n</ocr-content>`
+        : `<ocr-content>（本次对话未上传图片，或图片中无文字）</ocr-content>`,
+        
+      hasOcrContent
+        ? `<ocr-spans-preview>\n${JSON.stringify(state.ocrResult!.spans.slice(0, 10))}\n</ocr-spans-preview>`
+        : ""
     ].join("\n\n");
 
     const prompt = ChatPromptTemplate.fromMessages([
